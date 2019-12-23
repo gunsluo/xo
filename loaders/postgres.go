@@ -156,8 +156,8 @@ func PgParseType(args *internal.ArgType, dt string, nullable bool) (int, string,
 		nilVal = "time.Time{}"
 		typ = "time.Time"
 		if nullable {
-			nilVal = "pq.NullTime{}"
-			typ = "pq.NullTime"
+			nilVal = "NullTime{}"
+			typ = "NullTime"
 		}
 
 	case "interval":

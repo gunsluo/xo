@@ -129,14 +129,23 @@ type ArgType struct {
 	// Filename is the output filename, as derived from Out.
 	Filename string `arg:"-"`
 
-	// LoaderType is the loader type.
+	// LoaderTypes is all loader type.
+	LoaderTypes []string `arg:"-"`
+
+	// LoaderType is current loader type.
 	LoaderType string `arg:"-"`
 
-	// Loader is the schema loader.
+	// Loader is current schema loader.
 	Loader Loader `arg:"-"`
 
-	// DB is the opened database handle.
+	// Loaders is the schema loader.
+	Loaders map[string]Loader `arg:"-"`
+
+	// DB is current opened database handle.
 	DB *sql.DB `arg:"-"`
+
+	// DBS is the opened database handle.
+	DBS map[string]*sql.DB `arg:"-"`
 
 	// templateSet is the set of templates to use for generating data.
 	templateSet *TemplateSet `arg:"-"`
@@ -150,6 +159,9 @@ type ArgType struct {
 	// ShortNameTypeMap is the collection of Go style short names for types, mainly
 	// used for use with declaring a func receiver on a type.
 	ShortNameTypeMap map[string]string `arg:"-"`
+
+	// SchemaDefinition is schema definition
+	SchemaDefinition map[string]SchemaDefinition `arg:"-"`
 }
 
 // NewDefaultArgs returns the default arguments.

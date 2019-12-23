@@ -33,6 +33,8 @@ func (a *ArgType) NewTemplateFuncs() template.FuncMap {
 		"hascolumn":          a.hascolumn,
 		"hasfield":           a.hasfield,
 		"getstartcount":      a.getstartcount,
+		"driver":             a.driver,
+		"firstletterupper":   a.firstLetterUpper,
 	}
 }
 
@@ -635,4 +637,14 @@ func (a *ArgType) hasfield(fields []*Field, name string) bool {
 // getstartcount returns a starting count for numbering columsn in queries
 func (a *ArgType) getstartcount(fields []*Field, pkFields []*Field) int {
 	return len(fields) - len(pkFields)
+}
+
+// driver returns driver name
+func (a *ArgType) driver() string {
+	return a.LoaderType
+}
+
+// firstLetterUpper first letter to upper
+func (a *ArgType) firstLetterUpper(s string) string {
+	return strings.Title(s)
 }

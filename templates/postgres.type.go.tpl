@@ -1,34 +1,10 @@
 {{- $short := (shortname .Name "err" "res" "sqlstr" "db" "XOLog") -}}
 {{- $table := (schema .Schema .Table.TableName) -}}
-{{- if .Comment -}}
-// {{ .Comment }}
-{{- else -}}
-// {{ .Name }} represents a row from '{{ $table }}'.
-{{- end }}
-type {{ .Name }} struct {
-{{- range .Fields }}
-	{{ .Name }} {{ retype .Type }} `json:"{{ .Col.ColumnName }}"` // {{ .Col.ColumnName }}
-{{- end }}
-{{- if .PrimaryKey }}
-
-	// xo fields
-	_exists, _deleted bool
-{{ end }}
-}
+{{- $dname := (print (firstletterupper (driver) ) "Storage") -}}
 
 {{ if .PrimaryKey }}
-// Exists determines if the {{ .Name }} exists in the database.
-func ({{ $short }} *{{ .Name }}) Exists() bool {
-	return {{ $short }}._exists
-}
-
-// Deleted provides information if the {{ .Name }} has been deleted from the database.
-func ({{ $short }} *{{ .Name }}) Deleted() bool {
-	return {{ $short }}._deleted
-}
-
-// Insert inserts the {{ .Name }} to the database.
-func ({{ $short }} *{{ .Name }}) Insert(db XODB) error {
+// Insert{{ .Name }} inserts the {{ .Name }} to the database.
+func (s *{{ $dname }}) Insert{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) error {
 	var err error
 
 	// if already exist, bail
@@ -73,8 +49,8 @@ func ({{ $short }} *{{ .Name }}) Insert(db XODB) error {
 }
 
 {{ if ne (fieldnamesmulti .Fields $short .PrimaryKeyFields) "" }}
-	// Update updates the {{ .Name }} in the database.
-	func ({{ $short }} *{{ .Name }}) Update(db XODB) error {
+	// Update{{ .Name }} updates the {{ .Name }} in the database.
+	func (s *{{ $dname }}) Update{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) error {
 		var err error
 
 		// if doesn't exist, bail
@@ -114,19 +90,17 @@ func ({{ $short }} *{{ .Name }}) Insert(db XODB) error {
 		{{- end }}
 	}
 
-	// Save saves the {{ .Name }} to the database.
-	func ({{ $short }} *{{ .Name }}) Save(db XODB) error {
+	// Save{{ .Name }} saves the {{ .Name }} to the database.
+	func (s *{{ $dname }}) Save{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) error {
 		if {{ $short }}.Exists() {
-			return {{ $short }}.Update(db)
+			return s.Update{{ .Name }}(db, {{ $short }})
 		}
 
-		return {{ $short }}.Insert(db)
+		return s.Insert{{ .Name }}(db, {{ $short }})
 	}
 
-	// Upsert performs an upsert for {{ .Name }}.
-	//
-	// NOTE: PostgreSQL 9.5+ only
-	func ({{ $short }} *{{ .Name }}) Upsert(db XODB) error {
+	// Upsert{{ .Name }} performs an upsert for {{ .Name }}.
+	func (s *{{ $dname }}) Upsert{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) error {
 		var err error
 
 		// if already exist, bail
@@ -156,13 +130,13 @@ func ({{ $short }} *{{ .Name }}) Insert(db XODB) error {
 		{{ $short }}._exists = true
 
 		return nil
-}
+	}
 {{ else }}
 	// Update statements omitted due to lack of fields other than primary key
 {{ end }}
 
-// Delete deletes the {{ .Name }} from the database.
-func ({{ $short }} *{{ .Name }}) Delete(db XODB) error {
+// Delete{{ .Name }} deletes the {{ .Name }} from the database.
+func (s *{{ $dname }}) Delete{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) error {
 	var err error
 
 	// if doesn't exist, bail
@@ -203,4 +177,3 @@ func ({{ $short }} *{{ .Name }}) Delete(db XODB) error {
 	return nil
 }
 {{- end }}
-

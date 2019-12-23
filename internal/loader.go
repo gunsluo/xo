@@ -277,16 +277,33 @@ func (tl TypeLoader) LoadSchema(args *ArgType) error {
 	}
 
 	// load foreign keys
-	_, err = tl.LoadForeignKeys(args, tableMap)
+	foreignMap, err := tl.LoadForeignKeys(args, tableMap)
 	if err != nil {
 		return err
 	}
 
 	// load indexes
-	_, err = tl.LoadIndexes(args, tableMap)
+	indexesMap, err := tl.LoadIndexes(args, tableMap)
 	if err != nil {
 		return err
 	}
+
+	// load definition
+	var definition SchemaDefinition
+	for _, table := range tableMap {
+		definition.Tables = append(definition.Tables, table)
+	}
+	for _, view := range viewMap {
+		definition.Views = append(definition.Views, view)
+	}
+	for _, foreign := range foreignMap {
+		definition.Foreign = append(definition.Foreign, foreign)
+	}
+	for _, index := range indexesMap {
+		definition.Indexes = append(definition.Indexes, index)
+	}
+	definition.Drivers = append(definition.Drivers, args.LoaderType)
+	args.SchemaDefinition[args.LoaderType] = definition
 
 	return nil
 }
@@ -773,3 +790,19 @@ func (tl TypeLoader) LoadIndexColumns(args *ArgType, ixTpl *Index) error {
 
 	return nil
 }
+
+/*
+// LoadSchemaDefinition loads schema definition.
+func (tl TypeLoader) LoadSchemaDefinition(args *ArgType, tableMap map[string]*Type, viewMap map[string]*Type,
+	foreignMap map[string]*ForeignKey, indexMap map[string]*Index) error {
+
+	err = args.ExecuteTemplate(SchemaTemplate, "schema", "", value)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+*/
+
+var err error

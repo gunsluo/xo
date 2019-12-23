@@ -59,23 +59,44 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
-	defer args.DB.Close()
+	defer func() {
+		for _, db := range args.DBS {
+			db.Close()
+		}
+	}()
 
-	// load schema name
-	if args.Schema == "" {
-		args.Schema, err = args.Loader.SchemaName(args)
+	for driver, loader := range args.Loaders {
+		// set current driver
+		args.LoaderType = driver
+		args.Loader = loader
+		if db, ok := args.DBS[driver]; ok {
+			args.DB = db
+		} else {
+			fmt.Fprintf(os.Stderr, "not support %s\n", driver)
+			os.Exit(1)
+		}
+
+		// load schema name
+		args.Schema, err = loader.SchemaName(args)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// load defs into type map
+		if args.QueryMode {
+			err = loader.ParseQuery(args)
+		} else {
+			err = loader.LoadSchema(args)
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
 	}
 
-	// load defs into type map
-	if args.QueryMode {
-		err = args.Loader.ParseQuery(args)
-	} else {
-		err = args.Loader.LoadSchema(args)
-	}
+	// add schema definitions
+	err = laodSchemaDefinition(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -200,32 +221,72 @@ func processArgs(args *internal.ArgType) error {
 			fmt.Printf("SQL:\n%s\nPARAMS:\n%v\n\n", s, p)
 		}
 	}
+	args.DBS = make(map[string]*sql.DB)
+	args.Loaders = make(map[string]internal.Loader)
+	args.SchemaDefinition = make(map[string]internal.SchemaDefinition)
 
 	return nil
 }
 
 // openDB attempts to open a database connection.
 func openDB(args *internal.ArgType) error {
-	var err error
-
-	// parse dsn
-	u, err := dburl.Parse(args.DSN)
-	if err != nil {
-		return err
+	// support multiple dsn
+	dsns := strings.Split(args.DSN, ",")
+	if len(dsns) == 0 {
+		return errors.New("no parameters dsn")
 	}
 
-	// save driver type
-	args.LoaderType = u.Driver
+	for _, dsn := range dsns {
+		// parse dsn
+		u, err := dburl.Parse(dsn)
+		if err != nil {
+			return err
+		}
+		driver := u.Driver
 
-	// grab loader
-	var ok bool
-	args.Loader, ok = internal.SchemaLoaders[u.Driver]
-	if !ok {
-		return errors.New("unsupported database type")
+		// save driver type
+		args.LoaderTypes = append(args.LoaderTypes, driver)
+
+		// grab loader
+		loader, ok := internal.SchemaLoaders[driver]
+		if !ok {
+			return errors.New("unsupported database type")
+		}
+		args.Loaders[driver] = loader
+
+		// open database connection
+		db, err := sql.Open(driver, u.DSN)
+		if err != nil {
+			return err
+		}
+		args.DBS[driver] = db
 	}
 
-	// open database connection
-	args.DB, err = sql.Open(u.Driver, u.DSN)
+	return nil
+}
+
+func laodSchemaDefinition(args *internal.ArgType) error {
+	if len(args.SchemaDefinition) == 0 {
+		return errors.New("no schema definition")
+	}
+
+	// use 1st element as schema definition, it should be checked later.
+	var drivers []string
+	for driver := range args.SchemaDefinition {
+		drivers = append(drivers, driver)
+	}
+	firstDefinition := args.SchemaDefinition[drivers[0]]
+
+	definition := internal.SchemaDefinition{
+		Tables:  firstDefinition.Tables,
+		Views:   firstDefinition.Views,
+		Foreign: firstDefinition.Foreign,
+		Indexes: firstDefinition.Indexes,
+		Drivers: drivers,
+	}
+
+	// add schema definitions
+	err := args.ExecuteTemplate(internal.SchemaTemplate, "schema", "", definition)
 	if err != nil {
 		return err
 	}
@@ -244,7 +305,13 @@ func getFile(args *internal.ArgType, t *internal.TBuf) (*os.File, error) {
 	var err error
 
 	// determine filename
-	var filename = strings.ToLower(t.Name) + args.Suffix
+
+	var filename string
+	if t.NeedSuffix {
+		filename = strings.ToLower(t.Name) + "." + t.Driver + args.Suffix
+	} else {
+		filename = strings.ToLower(t.Name) + args.Suffix
+	}
 	if args.SingleFile {
 		filename = args.Filename
 	}

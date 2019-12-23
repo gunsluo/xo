@@ -1,3 +1,17 @@
+// Config is storage configuration
+type Config struct {
+	Logger logrus.FieldLogger
+}
+
+var logger logrus.FieldLogger
+
+// XOLog provides the log func used by generated queries.
+func XOLog(s string, args ...interface{}) {
+	if logger != nil {
+		logger.Infof("%s %v", s, args)
+	}
+}
+
 // XODB is the common interface for database operations that can be used with
 // types from schema '{{ schema .Schema }}'.
 //
@@ -7,9 +21,6 @@ type XODB interface {
 	Query(string, ...interface{}) (*sql.Rows, error)
 	QueryRow(string, ...interface{}) *sql.Row
 }
-
-// XOLog provides the log func used by generated queries.
-var XOLog = func(string, ...interface{}) { }
 
 // ScannerValuer is the common interface for types that implement both the
 // database/sql.Scanner and sql/driver.Valuer interfaces.
@@ -68,4 +79,26 @@ func (ss StringSlice) Value() (driver.Value, error) {
 
 // Slice is a slice of ScannerValuers.
 type Slice []ScannerValuer
+
+// NullTime represents a time.Time that may be null. NullTime implements the
+// sql.Scanner interface so it can be used as a scan destination, similar to
+// sql.NullString.
+type NullTime struct {
+	Time  time.Time
+	Valid bool // Valid is true if Time is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (nt *NullTime) Scan(value interface{}) error {
+	nt.Time, nt.Valid = value.(time.Time)
+	return nil
+}
+
+// Value implements the driver Valuer interface.
+func (nt NullTime) Value() (driver.Value, error) {
+	if !nt.Valid {
+		return nil, nil
+	}
+	return nt.Time, nil
+}
 

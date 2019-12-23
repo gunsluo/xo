@@ -1,11 +1,13 @@
 {{- $short := (shortname .Type.Name "err" "sqlstr" "db" "q" "res" "XOLog" .QueryParams) -}}
 {{- $queryComments := .QueryComments -}}
+{{- $dname := (print (firstletterupper (driver) ) "Storage") -}}
+
 {{- if .Comment -}}
 // {{ .Comment }}
 {{- else -}}
 // {{ .Name }} runs a custom query, returning results as {{ .Type.Name }}.
 {{- end }}
-func {{ .Name }} (db XODB{{ range .QueryParams }}, {{ .Name }} {{ .Type }}{{ end }}) ({{ if not .OnlyOne }}[]{{ end }}*{{ .Type.Name }}, error) {
+func (s *{{ $dname }}) {{ .Name }} (db XODB{{ range .QueryParams }}, {{ .Name }} {{ .Type }}{{ end }}) ({{ if not .OnlyOne }}[]{{ end }}*{{ .Type.Name }}, error) {
 	var err error
 
 	// sql query

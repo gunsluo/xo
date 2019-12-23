@@ -1,8 +1,10 @@
 {{- $notVoid := (ne .Proc.ReturnType "void") -}}
 {{- $proc := (schema .Schema .Proc.ProcName) -}}
+{{- $dname := (print (firstletterupper (driver) ) "Storage") -}}
+
 {{- if ne .Proc.ReturnType "trigger" -}}
 // {{ .Name }} calls the stored procedure '{{ $proc }}({{ .ProcParams }}) {{ .Proc.ReturnType }}' on db.
-func {{ .Name }}(db XODB{{ goparamlist .Params true true }}) ({{ if $notVoid }}{{ retype .Return.Type }}, {{ end }}error) {
+func (s *{{ $dname }}) {{ .Name }}(db XODB{{ goparamlist .Params true true }}) ({{ if $notVoid }}{{ retype .Return.Type }}, {{ end }}error) {
 	var err error
 
 	// sql query

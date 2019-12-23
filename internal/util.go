@@ -228,6 +228,8 @@ type TBuf struct {
 	Name         string
 	Subname      string
 	Buf          *bytes.Buffer
+	Driver       string
+	NeedSuffix   bool
 }
 
 // TBufSlice is a slice of TBuf compatible with sort.Interface.
