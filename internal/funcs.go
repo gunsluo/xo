@@ -13,28 +13,30 @@ import (
 // NewTemplateFuncs returns a set of template funcs bound to the supplied args.
 func (a *ArgType) NewTemplateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"colcount":           a.colcount,
-		"colnames":           a.colnames,
-		"colnamesmulti":      a.colnamesmulti,
-		"colnamesquery":      a.colnamesquery,
-		"colnamesquerymulti": a.colnamesquerymulti,
-		"colprefixnames":     a.colprefixnames,
-		"colvals":            a.colvals,
-		"colvalsmulti":       a.colvalsmulti,
-		"fieldnames":         a.fieldnames,
-		"fieldnamesmulti":    a.fieldnamesmulti,
-		"goparamlist":        a.goparamlist,
-		"reniltype":          a.reniltype,
-		"retype":             a.retype,
-		"shortname":          a.shortname,
-		"convext":            a.convext,
-		"schema":             a.schemafn,
-		"colname":            a.colname,
-		"hascolumn":          a.hascolumn,
-		"hasfield":           a.hasfield,
-		"getstartcount":      a.getstartcount,
-		"driver":             a.driver,
-		"firstletterupper":   a.firstLetterUpper,
+		"colcount":            a.colcount,
+		"colnames":            a.colnames,
+		"colnamesas":          a.colnamesas,
+		"colnamesmulti":       a.colnamesmulti,
+		"colnamesquery":       a.colnamesquery,
+		"colprefixnamesquery": a.colprefixnamesquery,
+		"colnamesquerymulti":  a.colnamesquerymulti,
+		"colprefixnames":      a.colprefixnames,
+		"colvals":             a.colvals,
+		"colvalsmulti":        a.colvalsmulti,
+		"fieldnames":          a.fieldnames,
+		"fieldnamesmulti":     a.fieldnamesmulti,
+		"goparamlist":         a.goparamlist,
+		"reniltype":           a.reniltype,
+		"retype":              a.retype,
+		"shortname":           a.shortname,
+		"convext":             a.convext,
+		"schema":              a.schemafn,
+		"colname":             a.colname,
+		"hascolumn":           a.hascolumn,
+		"hasfield":            a.hasfield,
+		"getstartcount":       a.getstartcount,
+		"driver":              a.driver,
+		"firstletterupper":    a.firstLetterUpper,
 	}
 }
 
@@ -196,6 +198,34 @@ func (a *ArgType) colnames(fields []*Field, ignoreNames ...string) string {
 	return str
 }
 
+// colnamesas creates a list of the column names in fields as a `as` query,
+// excluding any Field with Name contained in ignoreNames.
+//
+// Used to create a list of column names in a query clause (ie, "$1 AS field, $2 = field
+// , ...").
+func (a *ArgType) colnamesas(fields []*Field, sep string, ignoreNames ...string) string {
+	ignore := map[string]bool{}
+	for _, n := range ignoreNames {
+		ignore[n] = true
+	}
+
+	str := ""
+	i := 0
+	for _, f := range fields {
+		if ignore[f.Name] {
+			continue
+		}
+
+		if i != 0 {
+			str = str + sep
+		}
+		str = str + a.Loader.NthParam(i) + " AS " + a.colname(f.Col)
+		i++
+	}
+
+	return str
+}
+
 // colnamesmulti creates a list of the column names found in fields, excluding any
 // Field with Name contained in ignoreNames.
 //
@@ -248,6 +278,43 @@ func (a *ArgType) colnamesquery(fields []*Field, sep string, ignoreNames ...stri
 			str = str + sep
 		}
 		str = str + a.colname(f.Col) + " = " + a.Loader.NthParam(i)
+		i++
+	}
+
+	return str
+}
+
+// colprefixnamesquery creates a list of the column names in fields as a query and
+// joined by sep, excluding any Field with Name contained in ignoreNames.
+//
+// Used to create a list of column names in a WHERE clause (ie, "t1.field_1 = t2.field_1
+// AND t1.field_2 = t2.field_2 AND ...") or in an UPDATE clause (ie, "t1.field = t2.field
+// , ...").
+func (a *ArgType) colprefixnamesquery(fields []*Field, prefixBefore string, prefixAfter string, sep string, ignoreNames ...string) string {
+	ignore := map[string]bool{}
+	for _, n := range ignoreNames {
+		ignore[n] = true
+	}
+
+	if prefixBefore != "" {
+		prefixBefore += "."
+	}
+	if prefixAfter != "" {
+		prefixAfter += "."
+	}
+
+	str := ""
+	i := 0
+	for _, f := range fields {
+		if ignore[f.Name] {
+			continue
+		}
+
+		if i != 0 {
+			str = str + sep
+		}
+		colname := a.colname(f.Col)
+		str = str + prefixBefore + colname + " = " + prefixAfter + colname
 		i++
 	}
 

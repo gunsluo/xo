@@ -103,11 +103,6 @@ func (s *{{ $dname }}) Insert{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) err
 	func (s *{{ $dname }}) Upsert{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) error {
 		var err error
 
-		// if already exist, bail
-		if {{ $short }}._exists {
-			return errors.New("insert failed: already exists")
-		}
-
 		// sql query
 		const sqlstr = `INSERT INTO {{ $table }} (` +
 			`{{ colnames .Fields }}` +

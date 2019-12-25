@@ -33,25 +33,18 @@ func (s *{{ $dname }}) Insert{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) err
 	// sql insert query, primary key provided by identity
 	const sqlstr = `INSERT INTO {{ $table }} (` +
 		`{{ colnames .Fields .PrimaryKey.Name }}` +
-		`) VALUES (` +
+		`) OUTPUT INSERTED.{{ .PrimaryKey.Name }} VALUES (` +
 		`{{ colvals .Fields .PrimaryKey.Name }}` +
 		`)`
 
 	// run query
 	XOLog(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }})
-	res, err := db.Exec(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }})
-	if err != nil {
-		return err
-	}
-
-	// retrieve id
-	id, err := res.LastInsertId()
+	err = db.QueryRow(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }}).Scan(&{{ $short }}.{{ .PrimaryKey.Name }})
 	if err != nil {
 		return err
 	}
 
 	// set primary key and existence
-	{{ $short }}.{{ .PrimaryKey.Name }} = {{ .PrimaryKey.Type }}(id)
 	{{ $short }}._exists = true
 {{ end }}
 
@@ -95,6 +88,26 @@ func (s *{{ $dname }}) Insert{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) err
 
 	// Upsert{{ .Name }} performs an upsert for {{ .Name }}.
 	func (s *{{ $dname }}) Upsert{{ .Name }}(db XODB, {{ $short }} *{{ .Name }}) error {
+		var err error
+
+		// sql query
+
+	    const sqlstr = `MERGE {{ $table }} AS t ` +
+		    `USING (SELECT {{ colnamesas .Fields ", " }}) AS s ` +
+		    `ON t.{{ colname .PrimaryKey.Col }} = s.{{ colname .PrimaryKey.Col }} ` +
+		    `WHEN MATCHED THEN UPDATE SET {{ colprefixnamesquery .Fields "" "s" ", " .PrimaryKey.Name }} ` +
+		    `WHEN NOT MATCHED THEN INSERT ({{ colnames .Fields .PrimaryKey.Name }}) VALUES ({{ colprefixnames .Fields "s" .PrimaryKey.Name }});`
+
+		// run query
+		XOLog(sqlstr, {{ fieldnames .Fields $short }})
+		_, err = db.Exec(sqlstr, {{ fieldnames .Fields $short }})
+		if err != nil {
+			return err
+		}
+
+		// set existence
+		{{ $short }}._exists = true
+
 		return nil
 	}
 {{ else }}
