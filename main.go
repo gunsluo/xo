@@ -96,7 +96,14 @@ func main() {
 	}
 
 	// add schema definitions
-	err = laodSchemaDefinition(args)
+	err = loadSchemaDefinition(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// add extension
+	err = loadExtension(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -265,7 +272,7 @@ func openDB(args *internal.ArgType) error {
 	return nil
 }
 
-func laodSchemaDefinition(args *internal.ArgType) error {
+func loadSchemaDefinition(args *internal.ArgType) error {
 	if len(args.SchemaDefinition) == 0 {
 		return errors.New("no schema definition")
 	}
@@ -294,6 +301,38 @@ func laodSchemaDefinition(args *internal.ArgType) error {
 	return nil
 }
 
+func loadExtension(args *internal.ArgType) error {
+	if len(args.SchemaDefinition) == 0 {
+		return nil
+	}
+
+	// use 1st element as schema definition, it should be checked later.
+	var driver string
+	for key := range args.SchemaDefinition {
+		driver = key
+		break
+	}
+	firstDefinition := args.SchemaDefinition[driver]
+
+	// generate table extension templates
+	for _, t := range firstDefinition.Tables {
+		err := args.ExecuteTemplate(internal.ExtensionTemplate, t.Name, "", t)
+		if err != nil {
+			return err
+		}
+	}
+
+	// generate view extension templates
+	for _, t := range firstDefinition.Views {
+		err := args.ExecuteTemplate(internal.ExtensionTemplate, t.Name, "", t)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // files is a map of filenames to open file handles.
 var files = map[string]*os.File{}
 
@@ -305,13 +344,15 @@ func getFile(args *internal.ArgType, t *internal.TBuf) (*os.File, error) {
 	var err error
 
 	// determine filename
-
-	var filename string
-	if t.NeedSuffix {
-		filename = strings.ToLower(t.Name) + "." + t.Driver + args.Suffix
-	} else {
-		filename = strings.ToLower(t.Name) + args.Suffix
+	filename := strings.ToLower(t.Name)
+	if t.TemplateType == internal.ExtensionTemplate {
+		filename += "." + internal.ExtensionTemplate.String()
 	}
+	if t.NeedSuffix {
+		filename += "." + t.Driver
+	}
+	filename += args.Suffix
+
 	if args.SingleFile {
 		filename = args.Filename
 	}

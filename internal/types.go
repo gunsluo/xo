@@ -15,6 +15,7 @@ const (
 	QueryTypeTemplate
 	QueryTemplate
 	SchemaTemplate
+	ExtensionTemplate
 
 	// always last
 	XOTemplate
@@ -42,6 +43,8 @@ func (tt TemplateType) String() string {
 		s = "query"
 	case SchemaTemplate:
 		s = "schema"
+	case ExtensionTemplate:
+		s = "extension"
 	default:
 		panic("unknown TemplateType")
 	}
