@@ -3,6 +3,7 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/gedex/inflector"
@@ -290,18 +291,58 @@ func (tl TypeLoader) LoadSchema(args *ArgType) error {
 
 	// load definition
 	var definition SchemaDefinition
-	for _, table := range tableMap {
-		definition.Tables = append(definition.Tables, table)
+	var tableKeys []string
+	for key := range tableMap {
+		tableKeys = append(tableKeys, key)
 	}
-	for _, view := range viewMap {
+	sort.Strings(tableKeys)
+	for _, key := range tableKeys {
+		t, ok := tableMap[key]
+		if !ok {
+			continue
+		}
+		definition.Tables = append(definition.Tables, t)
+	}
+
+	var viewKeys []string
+	for key := range viewMap {
+		viewKeys = append(viewKeys, key)
+	}
+	sort.Strings(viewKeys)
+	for _, key := range viewKeys {
+		view, ok := viewMap[key]
+		if !ok {
+			continue
+		}
 		definition.Views = append(definition.Views, view)
 	}
-	for _, foreign := range foreignMap {
+
+	var foreignKeys []string
+	for key := range foreignMap {
+		foreignKeys = append(foreignKeys, key)
+	}
+	sort.Strings(foreignKeys)
+	for _, key := range foreignKeys {
+		foreign, ok := foreignMap[key]
+		if !ok {
+			continue
+		}
 		definition.Foreign = append(definition.Foreign, foreign)
 	}
-	for _, index := range indexesMap {
+
+	var indexesKeys []string
+	for key := range indexesMap {
+		indexesKeys = append(indexesKeys, key)
+	}
+	sort.Strings(indexesKeys)
+	for _, key := range indexesKeys {
+		index, ok := indexesMap[key]
+		if !ok {
+			continue
+		}
 		definition.Indexes = append(definition.Indexes, index)
 	}
+
 	definition.Drivers = append(definition.Drivers, args.LoaderType)
 	args.SchemaDefinition[args.LoaderType] = definition
 
@@ -504,8 +545,19 @@ func (tl TypeLoader) LoadRelkind(args *ArgType, relType RelType) (map[string]*Ty
 		tableMap[ti.TableName] = typeTpl
 	}
 
-	// generate table templates
-	for _, t := range tableMap {
+	// generate table templates, sort by tableNames
+	var tableNames []string
+	for tableName := range tableMap {
+		tableNames = append(tableNames, tableName)
+	}
+	sort.Strings(tableNames)
+
+	for _, name := range tableNames {
+		t, ok := tableMap[name]
+		if !ok {
+			continue
+		}
+
 		err = args.ExecuteTemplate(TypeTemplate, t.Name, "", t)
 		if err != nil {
 			return nil, err
