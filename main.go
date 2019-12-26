@@ -273,15 +273,12 @@ func openDB(args *internal.ArgType) error {
 }
 
 func loadSchemaDefinition(args *internal.ArgType) error {
-	if len(args.SchemaDefinition) == 0 {
+	if len(args.SchemaDefinition) == 0 || len(args.LoaderTypes) == 0 {
 		return errors.New("no schema definition")
 	}
 
 	// use 1st element as schema definition, it should be checked later.
-	var drivers []string
-	for driver := range args.SchemaDefinition {
-		drivers = append(drivers, driver)
-	}
+	drivers := args.LoaderTypes
 	firstDefinition := args.SchemaDefinition[drivers[0]]
 
 	definition := internal.SchemaDefinition{
@@ -302,16 +299,12 @@ func loadSchemaDefinition(args *internal.ArgType) error {
 }
 
 func loadExtension(args *internal.ArgType) error {
-	if len(args.SchemaDefinition) == 0 {
-		return nil
+	if len(args.SchemaDefinition) == 0 || len(args.LoaderTypes) == 0 {
+		return errors.New("no schema definition")
 	}
 
 	// use 1st element as schema definition, it should be checked later.
-	var driver string
-	for key := range args.SchemaDefinition {
-		driver = key
-		break
-	}
+	driver := args.LoaderTypes[0]
 	firstDefinition := args.SchemaDefinition[driver]
 
 	// generate table extension templates
