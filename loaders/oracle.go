@@ -12,22 +12,24 @@ import (
 
 // ManualLoadOracle manual load oracle schema
 func ManualLoadOracle() {
-	internal.SchemaLoaders["godror"] = internal.TypeLoader{
-		ParamN:         func(i int) string { return fmt.Sprintf(":%d", i+1) },
-		MaskFunc:       func() string { return ":%d" },
-		ProcessRelkind: OrRelkind,
-		Schema:         OrSchema,
-		ParseType:      OrParseType,
-		//EnumList:        models.OrEnums,
-		//EnumValueList:   OrEnumValues,
-		//ProcList:      models.OrProcs,
-		//ProcParamList: models.OrProcParams,
-		TableList:       models.OrTables,
-		ColumnList:      OrTableColumns,
-		ForeignKeyList:  OrTableForeignKeys,
-		IndexList:       OrTableIndexes,
-		IndexColumnList: OrIndexColumns,
-		QueryColumnList: OrQueryColumns,
+	if _, ok := internal.SchemaLoaders["godror"]; !ok {
+		internal.SchemaLoaders["godror"] = internal.TypeLoader{
+			ParamN:         func(i int) string { return fmt.Sprintf(":%d", i+1) },
+			MaskFunc:       func() string { return ":%d" },
+			ProcessRelkind: OrRelkind,
+			Schema:         OrSchema,
+			ParseType:      OrParseType,
+			//EnumList:        models.OrEnums,
+			//EnumValueList:   OrEnumValues,
+			//ProcList:      models.OrProcs,
+			//ProcParamList: models.OrProcParams,
+			TableList:       models.OrTables,
+			ColumnList:      OrTableColumns,
+			ForeignKeyList:  OrTableForeignKeys,
+			IndexList:       OrTableIndexes,
+			IndexColumnList: OrIndexColumns,
+			QueryColumnList: OrQueryColumns,
+		}
 	}
 }
 
