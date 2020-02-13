@@ -8,7 +8,6 @@ import (
 
 	"github.com/gedex/inflector"
 	"github.com/knq/snaker"
-
 	"github.com/xo/xo/models"
 )
 
@@ -289,6 +288,11 @@ func (tl TypeLoader) LoadSchema(args *ArgType) error {
 		return err
 	}
 
+	err = tl.LoadTableExtention(args, tableMap)
+	if err != nil {
+		return err
+	}
+
 	// load definition
 	var definition SchemaDefinition
 	var tableKeys []string
@@ -527,6 +531,10 @@ func (tl TypeLoader) LoadRelkind(args *ArgType, relType RelType) (map[string]*Ty
 	// tables
 	tableMap := make(map[string]*Type)
 	for _, ti := range tableList {
+		if tl.isIgnored(args, ti.TableName) {
+			continue
+		}
+
 		// create template
 		typeTpl := &Type{
 			Name:    SingularizeIdentifier(ti.TableName),
@@ -545,26 +553,21 @@ func (tl TypeLoader) LoadRelkind(args *ArgType, relType RelType) (map[string]*Ty
 		tableMap[ti.TableName] = typeTpl
 	}
 
-	// generate table templates, sort by tableNames
-	var tableNames []string
-	for tableName := range tableMap {
-		tableNames = append(tableNames, tableName)
-	}
-	sort.Strings(tableNames)
-
-	for _, name := range tableNames {
-		t, ok := tableMap[name]
-		if !ok {
-			continue
-		}
-
-		err = args.ExecuteTemplate(TypeTemplate, t.Name, "", t)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return tableMap, nil
+}
+
+func (tl TypeLoader) isIgnored(args *ArgType, tableName string) bool {
+	if len(args.IgnoreTables) == 0 {
+		return false
+	}
+
+	for _, ignoredTableName := range args.IgnoreTables {
+		if ignoredTableName == tableName {
+			return true
+		}
+	}
+
+	return false
 }
 
 // LoadColumns loads schema table/view columns.
@@ -657,6 +660,9 @@ func (tl TypeLoader) LoadTableForeignKeys(args *ArgType, tableMap map[string]*Ty
 		return err
 	}
 
+	var foreignKeys []*ForeignKey
+	fkRefFieldMap := make(map[string][]*ForeignKey)
+
 	// loop over foreign keys for table
 	for _, fk := range foreignKeyList {
 		var refTpl *Type
@@ -705,7 +711,7 @@ func (tl TypeLoader) LoadTableForeignKeys(args *ArgType, tableMap map[string]*Ty
 		}
 
 		// create foreign key template
-		fkMap[fk.ForeignKeyName] = &ForeignKey{
+		foreignKey := &ForeignKey{
 			Schema:     args.Schema,
 			Type:       typeTpl,
 			Field:      col,
@@ -713,7 +719,31 @@ func (tl TypeLoader) LoadTableForeignKeys(args *ArgType, tableMap map[string]*Ty
 			RefField:   refCol,
 			ForeignKey: fk,
 		}
+		if _, ok := fkMap[fk.ForeignKeyName]; ok {
+			continue
+		}
+		fkMap[fk.ForeignKeyName] = foreignKey
+
+		// unique fk reverse filed name
+		// e.g in tableA we have field fieldA, fieldB, in tableB we have fieldC
+		// fieldA and field B REFERENCES to tableB.fieldC, thus we will get same reverse field name by fkreversefield
+		// so we should rename in this situation
+		foreignKey.FkReverseField = args.fkreversefield(foreignKey, false)
+		reverseFieldKey := fmt.Sprintf("%s@%s", foreignKey.RefType.Table.TableName, foreignKey.FkReverseField)
+		if fks, ok := fkRefFieldMap[reverseFieldKey]; ok {
+			fks = append(fks, foreignKey)
+			for _, fk := range fks {
+				fk.FkReverseField = args.fkreversefield(fk, true)
+			}
+		} else {
+			var fks []*ForeignKey
+			fks = append(fks, foreignKey)
+			fkRefFieldMap[reverseFieldKey] = fks
+		}
+
+		foreignKeys = append(foreignKeys, foreignKey)
 	}
+	typeTpl.ForeignKeys = foreignKeys
 
 	return nil
 }
@@ -753,7 +783,9 @@ func (tl TypeLoader) LoadTableIndexes(args *ArgType, typeTpl *Type, ixMap map[st
 		return err
 	}
 
+	var indexes []*Index
 	// process indexes
+LOOP_INDEX_LIST:
 	for _, ix := range indexList {
 		// save whether or not the primary key index was processed
 		priIxLoaded = priIxLoaded || ix.IsPrimary || (ix.Origin == "pk")
@@ -771,11 +803,18 @@ func (tl TypeLoader) LoadTableIndexes(args *ArgType, typeTpl *Type, ixMap map[st
 		if err != nil {
 			return err
 		}
-
 		// build func name
 		args.BuildIndexFuncName(ixTpl)
 
+		for _, index := range ixMap {
+			if ixTpl.FuncName == index.FuncName {
+				continue LOOP_INDEX_LIST
+			}
+		}
+
 		ixMap[typeTpl.Table.TableName+"_"+ix.IndexName] = ixTpl
+
+		indexes = append(indexes, ixTpl)
 	}
 
 	// search for primary key if it was skipped being set in the type
@@ -792,9 +831,9 @@ func (tl TypeLoader) LoadTableIndexes(args *ArgType, typeTpl *Type, ixMap map[st
 	// if no primary key index loaded, but a primary key column was defined in
 	// the type, then create the definition here. this is needed for sqlite, as
 	// sqlite doesn't define primary keys in its index list
-	if args.LoaderType != "ora" && !priIxLoaded && pk != nil {
+	if args.LoaderType != "godror" && !priIxLoaded && pk != nil {
 		ixName := typeTpl.Table.TableName + "_" + pk.Col.ColumnName + "_pkey"
-		ixMap[ixName] = &Index{
+		ixTpl := &Index{
 			FuncName: typeTpl.Name + "By" + pk.Name,
 			Schema:   args.Schema,
 			Type:     typeTpl,
@@ -805,8 +844,11 @@ func (tl TypeLoader) LoadTableIndexes(args *ArgType, typeTpl *Type, ixMap map[st
 				IsPrimary: true,
 			},
 		}
+		ixMap[ixName] = ixTpl
+		indexes = append(indexes, ixTpl)
 	}
 
+	typeTpl.Indexes = indexes
 	return nil
 }
 
@@ -843,18 +885,40 @@ func (tl TypeLoader) LoadIndexColumns(args *ArgType, ixTpl *Index) error {
 	return nil
 }
 
-/*
-// LoadSchemaDefinition loads schema definition.
-func (tl TypeLoader) LoadSchemaDefinition(args *ArgType, tableMap map[string]*Type, viewMap map[string]*Type,
-	foreignMap map[string]*ForeignKey, indexMap map[string]*Index) error {
+func (tl TypeLoader) LoadTableExtention(args *ArgType, tableMap map[string]*Type) error {
+	// generate table templates, sort by tableNames
+	var tableNames []string
+	var foreignKeys []*ForeignKey
+	for tableName, t := range tableMap {
+		tableNames = append(tableNames, tableName)
+		foreignKeys = append(foreignKeys, t.ForeignKeys...)
+	}
+	sort.Strings(tableNames)
 
-	err = args.ExecuteTemplate(SchemaTemplate, "schema", "", value)
-	if err != nil {
-		return err
+	// populate reverse foreign keys
+	for _, name := range tableNames {
+		t, ok := tableMap[name]
+		if !ok {
+			continue
+		}
+
+		if !tl.isIgnored(args, t.Table.TableName) {
+			var refFKs []*ForeignKey
+			for _, fk := range foreignKeys {
+				if t == fk.RefType {
+					refFKs = append(refFKs, fk)
+				}
+			}
+			sort.Slice(refFKs, func(i, j int) bool { return refFKs[i].FkReverseField < refFKs[j].FkReverseField })
+			t.RefFKs = refFKs
+		}
+
+		err := args.ExecuteTemplate(TypeTemplate, t.Name, "", t)
+		if err != nil {
+			return err
+		}
+		args.TypeMap[t.Name] = true
 	}
 
 	return nil
 }
-*/
-
-var err error

@@ -7,4 +7,5 @@ type SchemaDefinition struct {
 	Foreign []*ForeignKey
 	Indexes []*Index
 	Drivers []string
+	TypeMap map[string]bool
 }

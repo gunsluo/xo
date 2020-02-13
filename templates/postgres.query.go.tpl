@@ -1,4 +1,4 @@
-{{- $short := (shortname .Type.Name "err" "sqlstr" "db" "q" "res" "XOLog" .QueryParams) -}}
+{{- $short := (shortname .Type.Name "err" "sqlstr" "db" "q" "res" "xoLog" .QueryParams) -}}
 {{- $queryComments := .QueryComments -}}
 {{- $dname := (print (firstletterupper (driver) ) "Storage") -}}
 
@@ -15,7 +15,7 @@ func (s *{{ $dname }}) {{ .Name }} (db XODB{{ range .QueryParams }}, {{ .Name }}
 	{{end -}}`{{ $l }}`{{ end }}
 
 	// run query
-	XOLog(sqlstr{{ range .QueryParams }}{{ if not .Interpolate }}, {{ .Name }}{{ end }}{{ end }})
+	s.info(sqlstr{{ range .QueryParams }}{{ if not .Interpolate }}, {{ .Name }}{{ end }}{{ end }})
 {{- if .OnlyOne }}
 	var {{ $short }} {{ .Type.Name }}
 	err = db.QueryRow(sqlstr{{ range .QueryParams }}, {{ .Name }}{{ end }}).Scan({{ fieldnames .Type.Fields (print "&" $short) }})

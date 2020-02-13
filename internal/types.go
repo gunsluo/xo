@@ -133,6 +133,10 @@ type Type struct {
 	Fields           []*Field
 	Table            *models.Table
 	Comment          string
+
+	Indexes     []*Index
+	ForeignKeys []*ForeignKey
+	RefFKs      []*ForeignKey
 }
 
 // ForeignKey is a template item for a foreign relationship on a table.
@@ -145,6 +149,8 @@ type ForeignKey struct {
 	RefField   *Field
 	ForeignKey *models.ForeignKey
 	Comment    string
+
+	FkReverseField string
 }
 
 // Index is a template item for a index into a table.

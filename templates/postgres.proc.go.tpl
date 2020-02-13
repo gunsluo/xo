@@ -13,7 +13,7 @@ func (s *{{ $dname }}) {{ .Name }}(db XODB{{ goparamlist .Params true true }}) (
 	// run query
 {{- if $notVoid }}
 	var ret {{ retype .Return.Type }}
-	XOLog(sqlstr{{ goparamlist .Params true false }})
+	s.info(sqlstr{{ goparamlist .Params true false }})
 	err = db.QueryRow(sqlstr{{ goparamlist .Params true false }}).Scan(&ret)
 	if err != nil {
 		return {{ reniltype .Return.NilType }}, err
@@ -21,7 +21,7 @@ func (s *{{ $dname }}) {{ .Name }}(db XODB{{ goparamlist .Params true true }}) (
 
 	return ret, nil
 {{- else }}
-	XOLog(sqlstr)
+	s.info(sqlstr)
 	_, err = db.Exec(sqlstr)
 	return err
 {{- end }}

@@ -1,15 +1,6 @@
 // Config is storage configuration
 type Config struct {
-	Logger logrus.FieldLogger
-}
-
-var logger logrus.FieldLogger
-
-// XOLog provides the log func used by generated queries.
-func XOLog(s string, args ...interface{}) {
-	if logger != nil {
-		logger.Infof("%s %v", s, args)
-	}
+	Logger XOLogger
 }
 
 // XODB is the common interface for database operations that can be used with
@@ -20,6 +11,25 @@ type XODB interface {
 	Exec(string, ...interface{}) (sql.Result, error)
 	Query(string, ...interface{}) (*sql.Rows, error)
 	QueryRow(string, ...interface{}) *sql.Row
+}
+
+// XOLogger provides the log interface used by generated queries.
+type XOLogger interface {
+	logrus.FieldLogger
+	Log(level logrus.Level, args ...interface{})
+	Logf(level logrus.Level, format string, args ...interface{})
+}
+
+func xoLog(logger XOLogger, level logrus.Level, args ...interface{}) {
+	if logger != nil {
+		logger.Log(level, args...)
+	}
+}
+
+func xoLogf(logger XOLogger, level logrus.Level, format string, args ...interface{}) {
+	if logger != nil {
+		logger.Logf(level, format, args...)
+	}
 }
 
 // ScannerValuer is the common interface for types that implement both the
@@ -102,3 +112,72 @@ func (nt NullTime) Value() (driver.Value, error) {
 	return nt.Time, nil
 }
 
+// Cursor specifies an index to sort by, the direction of the sort, an offset, and a limit.
+type Cursor struct {
+	Offset *int32
+	Limit  *int32
+	OrderBy  *string
+	Desc   *bool
+	Dead   *bool
+	After  *graphql.ID
+	First  *int32
+	Before *graphql.ID
+	Last   *int32
+}
+
+var (
+	defaultOffset 	int32  = 0
+	defaultLimit  	int32  = 50
+	defaultOrderBy  string = "id"
+	defaultDesc   	bool   = false
+	defaultDead   	bool   = false
+)
+
+// DefaultCursor will get the 50 first non-deleted IDs from a table.
+var DefaultCursor = Cursor{
+	Offset: &defaultOffset,
+	Limit:  &defaultLimit,
+	OrderBy:  &defaultOrderBy,
+	Desc:   &defaultDesc,
+	Dead:   &defaultDead,
+}
+
+// sqlConjunctionMap supported conjunction, related to graphql enum: FilterConjunction
+var sqlConjunctionMap = map[string]struct{}{
+	"AND":{},
+	"OR":{},
+}
+
+// filterPair item of filter
+type filterPair struct{
+	fieldName string
+	option string
+	value interface{}
+}
+
+// filterArguments filter arguments
+type filterArguments struct{
+	filterPairs []*filterPair
+	conjunction string
+	conjCnt int
+}
+
+// updateArguments additional parameters when updating method
+type updateArguments struct {
+	Deletions *[]string
+}
+
+// isDeletionFields return a bool value whether the field is set to null
+func isDeletionFields(deletionFields *[]string, field string) bool {
+	if deletionFields == nil {
+		return false
+	}
+
+	for _, deletionField := range *deletionFields {
+		if field == deletionField {
+			return true
+		}
+	}
+
+	return false
+}

@@ -7,12 +7,16 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
+	"github.com/graph-gophers/graphql-go"
+	"github.com/shopspring/decimal"
+	"github.com/mattn/go-oci8"
 )
 

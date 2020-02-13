@@ -6,7 +6,6 @@ import (
 	_ "github.com/denisenkom/go-mssqldb"
 
 	"github.com/knq/snaker"
-
 	"github.com/xo/xo/internal"
 	"github.com/xo/xo/models"
 )
@@ -142,11 +141,11 @@ func MsParseType(args *internal.ArgType, dt string, nullable bool) (int, string,
 			typ = "sql.NullFloat64"
 		}
 	case "numeric", "decimal":
-		nilVal = "0.0"
-		typ = "float64"
+		nilVal = "decimal.New(0, 0)"
+		typ = "decimal.Decimal"
 		if nullable {
-			nilVal = "sql.NullFloat64{}"
-			typ = "sql.NullFloat64"
+			nilVal = "decimal.NullDecimal{}"
+			typ = "decimal.NullDecimal"
 		}
 
 	case "binary", "varbinary":

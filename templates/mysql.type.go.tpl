@@ -1,4 +1,4 @@
-{{- $short := (shortname .Name "err" "res" "sqlstr" "db" "XOLog") -}}
+{{- $short := (shortname .Name "err" "res" "sqlstr" "db" "xoLog") -}}
 {{- $table := (schema .Schema .Table.TableName) -}}
 {{- if .Comment -}}
 // {{ .Comment }}
@@ -46,7 +46,7 @@ func ({{ $short }} *{{ .Name }}) Insert(db XODB) error {
 		`)`
 
 	// run query
-	XOLog(sqlstr, {{ fieldnames .Fields $short }})
+	s.info(sqlstr, {{ fieldnames .Fields $short }})
 	_, err = db.Exec(sqlstr, {{ fieldnames .Fields $short }})
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func ({{ $short }} *{{ .Name }}) Insert(db XODB) error {
 		`)`
 
 	// run query
-	XOLog(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }})
+	s.info(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }})
 	res, err := db.Exec(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }})
 	if err != nil {
 		return err
@@ -105,7 +105,7 @@ func ({{ $short }} *{{ .Name }}) Insert(db XODB) error {
 				` WHERE {{ colnamesquery .PrimaryKeyFields " AND " }}`
 
 			// run query
-			XOLog(sqlstr, {{ fieldnamesmulti .Fields $short .PrimaryKeyFields }}, {{ fieldnames .PrimaryKeyFields $short}})
+			s.info(sqlstr, {{ fieldnamesmulti .Fields $short .PrimaryKeyFields }}, {{ fieldnames .PrimaryKeyFields $short}})
 			_, err = db.Exec(sqlstr, {{ fieldnamesmulti .Fields $short .PrimaryKeyFields }}, {{ fieldnames .PrimaryKeyFields $short}})
 			return err
 		{{- else }}
@@ -115,7 +115,7 @@ func ({{ $short }} *{{ .Name }}) Insert(db XODB) error {
 				` WHERE {{ colname .PrimaryKey.Col }} = ?`
 
 			// run query
-			XOLog(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }}, {{ $short }}.{{ .PrimaryKey.Name }})
+			s.info(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }}, {{ $short }}.{{ .PrimaryKey.Name }})
 			_, err = db.Exec(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }}, {{ $short }}.{{ .PrimaryKey.Name }})
 			return err
 		{{- end }}
@@ -152,7 +152,7 @@ func ({{ $short }} *{{ .Name }}) Delete(db XODB) error {
 		const sqlstr = `DELETE FROM {{ $table }} WHERE {{ colnamesquery .PrimaryKeyFields " AND " }}`
 
 		// run query
-		XOLog(sqlstr, {{ fieldnames .PrimaryKeyFields $short }})
+		s.info(sqlstr, {{ fieldnames .PrimaryKeyFields $short }})
 		_, err = db.Exec(sqlstr, {{ fieldnames .PrimaryKeyFields $short }})
 		if err != nil {
 			return err
@@ -162,7 +162,7 @@ func ({{ $short }} *{{ .Name }}) Delete(db XODB) error {
 		const sqlstr = `DELETE FROM {{ $table }} WHERE {{ colname .PrimaryKey.Col }} = ?`
 
 		// run query
-		XOLog(sqlstr, {{ $short }}.{{ .PrimaryKey.Name }})
+		s.info(sqlstr, {{ $short }}.{{ .PrimaryKey.Name }})
 		_, err = db.Exec(sqlstr, {{ $short }}.{{ .PrimaryKey.Name }})
 		if err != nil {
 			return err

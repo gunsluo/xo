@@ -39,6 +39,11 @@ func (a *ArgType) TemplateSet() *TemplateSet {
 func (a *ArgType) ExecuteTemplate(tt TemplateType, name string, sub string, obj interface{}) error {
 	var err error
 
+	for _, ignored := range a.IgnoreTables {
+		if SingularizeIdentifier(ignored) == name { // FIXME: do this properly please
+			return err
+		}
+	}
 	// setup generated
 	if a.Generated == nil {
 		a.Generated = []TBuf{}
@@ -56,14 +61,16 @@ func (a *ArgType) ExecuteTemplate(tt TemplateType, name string, sub string, obj 
 	// build template name
 	loaderType := ""
 	if tt != XOTemplate && tt != SchemaTemplate && tt != ExtensionTemplate {
-		if a.LoaderType == "oci8" || a.LoaderType == "ora" {
+		if a.LoaderType == "oci8" || a.LoaderType == "godror" {
 			// force oracle for oci8 since the oracle driver doesn't recognize
 			// 'oracle' as valid protocol
 			loaderType = "oracle."
 		} else {
 			loaderType = a.LoaderType + "."
 		}
-		v.NeedSuffix = true
+		if tt != EnumTemplate {
+			v.NeedSuffix = true
+		}
 	}
 	templateName := fmt.Sprintf("%s%s.go.tpl", loaderType, tt)
 

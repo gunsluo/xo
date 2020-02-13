@@ -1,34 +1,55 @@
+// +build oracle
+
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
-	_ "gopkg.in/rana/ora.v4"
-
+	_ "github.com/mattn/go-oci8"
+	"github.com/sirupsen/logrus"
 	"github.com/xo/dburl"
-
 	"github.com/xo/xo/examples/booktest/oracle/models"
 )
 
 var flagVerbose = flag.Bool("v", false, "verbose")
-var flagURL = flag.String("url", "oracle://booktest:booktest@localhost/booktest", "url")
+var flagURL = flag.String("url", "oci8://booktest:booktest@localhost/booktest", "url")
 
 func main() {
 	var err error
 
 	// set logging
 	flag.Parse()
+	var logger models.XOLogger
 	if *flagVerbose {
-		models.XOLog = func(s string, p ...interface{}) {
-			fmt.Printf("-------------------------------------\nQUERY: %s\n  VAL: %v\n", s, p)
-		}
+		logger = logrus.New()
+	}
+
+	url, err := dburl.Parse(*flagURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	s, err := models.New(url.Driver, models.Config{Logger: logger})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var driver, dsn string
+	if strings.HasPrefix(*flagURL, "oci8://") {
+		driver = "oci8"
+		dsn = (*flagURL)[7:]
+	} else {
+		driver = url.Driver
+		dsn = url.DSN
 	}
 
 	// open database
-	db, err := dburl.Open(*flagURL)
+	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,7 +60,7 @@ func main() {
 	}
 
 	// save author to database
-	err = a.Save(db)
+	err = s.SaveAuthor(db, &a)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,9 +79,9 @@ func main() {
 		Title:     "my book title",
 		Year:      2016,
 		Available: now,
-		Tags:      "empty",
+		Tags:      sql.NullString{String: "empty", Valid: true},
 	}
-	err = b0.Save(tx)
+	err = s.SaveBook(tx, &b0)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,17 +93,17 @@ func main() {
 		Title:     "the second book",
 		Year:      2016,
 		Available: now,
-		Tags:      "cool unique",
+		Tags:      sql.NullString{String: "cool unique", Valid: true},
 	}
-	err = b1.Save(tx)
+	err = s.SaveBook(tx, &b1)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// update the title and tags
 	b1.Title = "changed second title"
-	b1.Tags = "cool disastor"
-	err = b1.Update(tx)
+	b1.Tags = sql.NullString{String: "cool disastor", Valid: true}
+	err = s.UpdateBook(tx, &b1)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -94,9 +115,9 @@ func main() {
 		Title:     "the third book",
 		Year:      2001,
 		Available: now,
-		Tags:      "cool",
+		Tags:      sql.NullString{String: "cool", Valid: true},
 	}
-	err = b2.Save(tx)
+	err = s.SaveBook(tx, &b2)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -108,9 +129,9 @@ func main() {
 		Title:     "4th place finisher",
 		Year:      2011,
 		Available: now,
-		Tags:      "other",
+		Tags:      sql.NullString{String: "other", Valid: true},
 	}
-	err = b3.Save(tx)
+	err = s.SaveBook(tx, &b3)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -139,29 +160,29 @@ func main() {
 	*/
 
 	// retrieve first book
-	books0, err := models.BooksByTitleYear(db, "my book title", 2016)
+	books0, err := s.BooksByTitleYear(db, "my book title", 2016)
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, book := range books0 {
-		fmt.Printf("Book %1.0f: %s available: %s\n", book.BookID, book.Title, book.Available.Format(time.RFC822Z))
-		author, err := book.Author(db)
+		fmt.Printf("Book %d: %s available: %s\n", book.BookID, book.Title, book.Available.Format(time.RFC822Z))
+		author, err := s.AuthorInBook(db, book)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		fmt.Printf("Book %1.0f author: %s\n", book.BookID, author.Name)
+		fmt.Printf("Book %d author: %s\n", book.BookID, author.Name)
 	}
 
 	// find a book with either "cool" or "other" tag
-	fmt.Printf("---------\nTag search results:\n")
+	/*fmt.Printf("---------\nTag search results:\n")
 	res, err := models.AuthorBookResultsByTags(db, "cool")
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, ab := range res {
 		fmt.Printf("Book %1.0f: '%s', Author: '%s', ISBN: '%s' Tags: '%v'\n", ab.BookID, ab.BookTitle, ab.AuthorName, ab.BookIsbn, ab.BookTags)
-	}
+	}*/
 
 	// call say_hello(varchar)
 	/*str, err := models.SayHello(db, "john")
@@ -171,11 +192,11 @@ func main() {
 	fmt.Printf("SayHello response: %s\n", str)*/
 
 	// get book 4 and delete
-	b5, err := models.BookByBookID(db, 4)
+	b5, err := s.BookByBookID(db, books0[0].BookID)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = b5.Delete(db)
+	err = s.DeleteBook(db, b5)
 	if err != nil {
 		log.Fatal(err)
 	}

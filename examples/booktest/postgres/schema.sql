@@ -23,7 +23,9 @@ CREATE TABLE books (
   title text NOT NULL DEFAULT '',
   year integer NOT NULL DEFAULT 2000,
   available timestamp with time zone NOT NULL DEFAULT 'NOW()',
-  tags varchar[] NOT NULL DEFAULT '{}'
+  tags varchar[] NOT NULL DEFAULT '{}',
+  width NUMERIC(32, 2) NOT NULL DEFAULT 0,
+  length NUMERIC(32, 2) DEFAULT 0
 );
 
 CREATE INDEX books_title_idx ON books(title, year);

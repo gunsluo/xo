@@ -1,14 +1,16 @@
 package internal
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 // ArgType is the type that specifies the command line arguments.
 type ArgType struct {
 	// Verbose enables verbose output.
 	Verbose bool `arg:"-v,help:toggle verbose"`
 
-	// DSN is the database string (ie, pgsql://user@blah:localhost:5432/dbname?args=)
-	DSN string `arg:"positional,required,help:data source name"`
+	// DSNS is the database string (ie, pgsql://user@blah:localhost:5432/dbname?args=)
+	DSNS DSNS `arg:"positional,required,help:data source name"`
 
 	// Schema is the name of the schema to query.
 	Schema string `arg:"-s,help:schema name to generate Go types for"`
@@ -43,6 +45,9 @@ type ArgType struct {
 	// IgnoreFields allows the user to specify field names which should not be
 	// handled by xo in the generated code.
 	IgnoreFields []string `arg:"--ignore-fields,help:fields to exclude from the generated Go code types"`
+
+	// IgnoreTables will ignore tables with specified name
+	IgnoreTables []string `arg:"--ignore-tables,help:tables to exclude from the generated Go code"`
 
 	// ForeignKeyMode is the foreign key mode for generating foreign key names.
 	ForeignKeyMode *FkMode `arg:"--fk-mode,-k,help:sets mode for naming foreign key funcs in generated Go code [values: <smart|parent|field|key>]"`
@@ -162,6 +167,22 @@ type ArgType struct {
 
 	// SchemaDefinition is schema definition
 	SchemaDefinition map[string]SchemaDefinition `arg:"-"`
+
+	TypeMap map[string]bool `arg:"-"`
+
+	// Used to check duplicates in specifies scope
+	ScopeDupes map[string]map[string]struct{} `arg:"-"`
+
+	// enable ac validitor.
+	EnableAC bool `arg:"--enable-ac,help:enable access control validitor"`
+
+	// enable entension.
+	EnableExtension bool `arg:"--enable-extension,help:enable entension block"`
+
+	// extra rules configuration file path
+	ExtraRuleFile   string              `arg:"--extra-rule,help:extra rules configuration file path"`
+	ExtraFiltersMap map[string]struct{} `arg:"-"`
+	ExtraACRulesMap map[string]struct{} `arg:"-"`
 }
 
 // NewDefaultArgs returns the default arguments.
@@ -229,3 +250,14 @@ func (a *ArgType) Description() string {
 
 // Args are the application arguments.
 var Args *ArgType
+
+type ExtraTable struct {
+	Enable bool     `json:"enable"`
+	Name   string   `json:"name"`
+	Fields []string `json:"fields"`
+}
+
+type ExtraRule struct {
+	ExtraFilters []ExtraTable `json:"ExtraFilters"`
+	ExtraACRules []ExtraTable `json:"ExtraACRules"`
+}

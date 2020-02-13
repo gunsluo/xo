@@ -1,0 +1,25 @@
+# Control special rules for XO code generation
+
+# Enumerate the special column of table that need to expose to graphql filter
+# By default, We only expose indexed column of table to the graphql filter.
+ExtraFilters:
+- name: job
+  enable: true
+  fields:
+  - gpa
+- name: career_level
+  enable: true
+  fields:
+  - created_date
+
+# Enumerate the special column need special access control on it.
+# By default, we only consider a table as a minimal resource of access control verify.
+ExtraACRules:
+- name: user_profile
+  enable: false
+  fields:
+  - email
+  - phone_home
+  - phone_mobile
+  - phone_work
+  - country

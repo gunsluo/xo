@@ -1,4 +1,4 @@
-{{- $short := (shortname .Type.Name "err" "sqlstr" "db" "q" "res" "XOLog" .Fields) -}}
+{{- $short := (shortname .Type.Name "err" "sqlstr" "db" "q" "res" "xoLog" .Fields) -}}
 {{- $table := (schema .Schema .Type.Table.TableName) -}}
 {{- $dname := (print (firstletterupper (driver) ) "Storage") -}}
 
@@ -15,7 +15,7 @@ func (s *{{ $dname }}) {{ .FuncName }}(db XODB{{ goparamlist .Fields true true }
 		`WHERE {{ colnamesquery .Fields " AND " }}`
 
 	// run query
-	XOLog(sqlstr{{ goparamlist .Fields true false }})
+	s.info(sqlstr{{ goparamlist .Fields true false }})
 {{- if .Index.IsUnique }}
 	{{ $short }} := {{ .Type.Name }}{
 	{{- if .Type.PrimaryKey }}
