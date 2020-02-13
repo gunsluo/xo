@@ -1,5 +1,3 @@
-// +build oracle
-
 package loaders
 
 import (
@@ -8,13 +6,12 @@ import (
 	"regexp"
 	"strings"
 
-	_ "github.com/mattn/go-oci8"
-
 	"github.com/xo/xo/internal"
 	"github.com/xo/xo/models"
 )
 
-func init() {
+// ManualLoadOracle manual load oracle schema
+func ManualLoadOracle() {
 	internal.SchemaLoaders["godror"] = internal.TypeLoader{
 		ParamN:         func(i int) string { return fmt.Sprintf(":%d", i+1) },
 		MaskFunc:       func() string { return ":%d" },

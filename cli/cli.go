@@ -14,9 +14,8 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/xo/dburl"
 	"github.com/xo/xo/internal"
+	"github.com/xo/xo/loaders"
 	"github.com/xo/xo/models"
-
-	_ "github.com/xo/xo/loaders"
 )
 
 // Generate build the code go file by options
@@ -238,6 +237,13 @@ func processArgs(args *internal.ArgType) error {
 	if args.Verbose {
 		models.XOLog = func(s string, p ...interface{}) {
 			fmt.Printf("SQL:\n%s\nPARAMS:\n%v\n\n", s, p)
+		}
+	}
+
+	// manual load oracle
+	for _, dsn := range args.DSNS {
+		if strings.HasPrefix(dsn, "oci8://") {
+			loaders.ManualLoadOracle()
 		}
 	}
 
